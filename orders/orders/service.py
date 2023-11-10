@@ -2,6 +2,8 @@ from nameko.events import EventDispatcher
 from nameko.rpc import rpc
 from nameko_sqlalchemy import DatabaseSession
 
+from nameko.events import event_handler
+
 from orders.exceptions import NotFound
 from orders.models import DeclarativeBase, Order, OrderDetail
 from orders.schemas import OrderSchema
@@ -66,3 +68,12 @@ class OrdersService:
         order = self.db.query(Order).get(order_id)
         self.db.delete(order)
         self.db.commit()
+        
+    @event_handler("products", "product_deleted")
+    def handle_product_deleted(self, payload):
+        product_id = payload["product_id"]
+        
+        order_details_to_delete = self.db.query(OrderDetail).filter(OrderDetail.product_id == product_id)
+        order_details_to_delete.delete(synchronize_session=False)
+        self.db.commit()
+

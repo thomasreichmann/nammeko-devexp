@@ -2,6 +2,7 @@ import logging
 
 from nameko.events import event_handler
 from nameko.rpc import rpc
+from nameko.events import EventDispatcher
 
 from products import dependencies, schemas
 
@@ -14,6 +15,8 @@ class ProductsService:
     name = 'products'
 
     storage = dependencies.Storage()
+    
+    event_dispatcher = EventDispatcher()
 
     @rpc
     def get(self, product_id):
@@ -23,6 +26,7 @@ class ProductsService:
     @rpc
     def delete(self, product_id):
         self.storage.delete(product_id)
+        self.event_dispatcher("product_deleted", {"product_id": product_id})
 
     @rpc
     def list(self):
