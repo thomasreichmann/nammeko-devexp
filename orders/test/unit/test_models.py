@@ -1,11 +1,7 @@
 from orders.models import Order, OrderDetail
+
 import pytest
 from nameko.testing.services import entrypoint_hook
-
-from orders.service import OrdersService
-import yaml
-
-from nameko import config as nameko_config
 from orders.service import OrdersService
 
 @pytest.fixture
