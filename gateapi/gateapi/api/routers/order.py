@@ -11,6 +11,12 @@ router = APIRouter(
     tags = ['Orders']
 )
 
+@router.get("", status_code=status.HTTP_200_OK)
+def list_orders(rpc = Depends(get_rpc)):
+    with rpc.next() as nameko:
+        orders = nameko.orders.list_orders()
+    return orders
+
 @router.get("/{order_id}", status_code=status.HTTP_200_OK)
 def get_order(order_id: int, rpc = Depends(get_rpc)):
     try:
