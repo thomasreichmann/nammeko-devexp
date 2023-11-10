@@ -19,6 +19,10 @@ class ProductsService:
     def get(self, product_id):
         product = self.storage.get(product_id)
         return schemas.Product().dump(product).data
+    
+    @rpc
+    def delete(self, product_id):
+        self.storage.delete(product_id)
 
     @rpc
     def list(self):
