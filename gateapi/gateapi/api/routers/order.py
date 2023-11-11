@@ -5,7 +5,7 @@ from typing import List
 from gateapi.api import schemas
 from fastapi import Query
 from gateapi.api.dependencies import get_rpc, config
-from .exceptions import OrderNotFound
+from .exceptions import OrderNotFound, ProductNotFound
 
 router = APIRouter(
     prefix = "/orders",
@@ -71,17 +71,22 @@ def _create_order(order_data, nameko_rpc):
     # Extract product IDs from the order details
     product_ids = [item['product_id'] for item in order_data['order_details']]
 
-    # Fetch product details for the given IDs
-    with nameko_rpc.next() as nameko:
-        products = nameko.products.get_products_by_ids(product_ids)
+    try:
+        # Fetch product details for the given IDs
+        with nameko_rpc.next() as nameko:
+            products = nameko.products.get_products_by_ids(product_ids)
 
-    # Validate if all product IDs are valid
-    if len(products) != len(product_ids):
-        # Handle invalid product IDs
-        missing_ids = set(product_ids) - {prod['id'] for prod in products}
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"Products with IDs {missing_ids} not found")
+        # Validate if all product IDs are valid
+        if len(products) != len(product_ids):
+            # Handle invalid product IDs
+            missing_ids = set(product_ids) - {prod['id'] for prod in products}
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                                detail=f"Products with IDs {missing_ids} not found")
 
-    # Proceed with order creation
-    result = nameko.orders.create_order(order_data['order_details'])
-    return result['id']
+        # Proceed with order creation
+        result = nameko.orders.create_order(order_data['order_details'])
+        return result['id']
+
+    except ProductNotFound as e:
+        # Handle the ProductNotFound exception
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
