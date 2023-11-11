@@ -1,6 +1,7 @@
 from nameko.events import EventDispatcher
 from nameko.rpc import rpc
 from nameko_sqlalchemy import DatabaseSession
+from sqlalchemy import func
 
 from nameko.events import event_handler
 
@@ -16,9 +17,16 @@ class OrdersService:
     event_dispatcher = EventDispatcher()
     
     @rpc
-    def list_orders(self):
-        orders = self.db.query(Order).all()
-        return OrderSchema(many=True).dump(orders).data
+    def list_orders(self, page=1, page_size=10):
+        total = self.db.query(func.count(Order.id)).scalar()
+        orders = self.db.query(Order).offset((page - 1) * page_size).limit(page_size).all()
+        return {
+            "total": total,
+            "pages": (total // page_size) + (1 if total % page_size > 0 else 0),
+            "current_page": page,
+            "page_size": page_size,
+            "orders": OrderSchema(many=True).dump(orders).data
+        }
 
     @rpc
     def get_order(self, order_id):
