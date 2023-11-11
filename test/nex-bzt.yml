@@ -115,10 +115,6 @@ scenarios:
         - 200
         subject: http-code
         not: false
-        
-    - if: '"${order_id}" == "NOT_FOUND"'
-      then:
-        - action: continue
 
     # 6. Delete Product
     - url: /products/${product_id}
