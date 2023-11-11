@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 
-@router.get("", status_code=status.HTTP_200_OK)
+@router.get("", response_model=schemas.PaginatedOrdersResponse, status_code=status.HTTP_200_OK)
 def list_orders(
     page: int = Query(1, alias="page", ge=1),
     page_size: int = Query(10, alias="page_size", ge=1),
