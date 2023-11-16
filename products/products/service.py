@@ -31,7 +31,6 @@ class ProductsService:
     @rpc
     def list(self):
         products = self.storage.list()
-        print(len(products))
         return schemas.Product(many=True).dump(products).data
 
     @rpc
