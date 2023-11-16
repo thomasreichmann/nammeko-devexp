@@ -8,7 +8,7 @@ from werkzeug import Response
 
 from gateway.entrypoints import http
 from gateway.exceptions import OrderNotFound, ProductNotFound
-from gateway.schemas import CreateOrderSchema, GetOrderSchema, ProductSchema
+from gateway.schemas import CreateOrderSchema, GetOrderSchema, PaginatedOrdersResponseSchema, ProductSchema
 
 
 class GatewayService(object):
@@ -74,6 +74,22 @@ class GatewayService(object):
             json.dumps({'id': product_data['id']}), mimetype='application/json'
         )
 
+    @http("DELETE", "/products/<string:product_id>", expected_exceptions=ProductNotFound)
+    def delete_product(self, request, product_id):
+        self.products_rpc.delete(product_id)
+        return Response(
+            json.dumps({"id": product_id}),
+            mimetype='application/json'
+        )
+        
+    @http("GET", "/orders")
+    def list_orders(self, request):
+        page = request.args.get('page', 1)
+        page_size = request.args.get('page_size', 10)
+        orders = self.orders_rpc.list_orders(page, page_size)
+        response = PaginatedOrdersResponseSchema().dump(orders)
+        return Response(json.dumps(response), mimetype='application/json')
+        
     @http("GET", "/orders/<int:order_id>", expected_exceptions=OrderNotFound)
     def get_order(self, request, order_id):
         """Gets the order details for the order given by `order_id`.
@@ -85,26 +101,18 @@ class GatewayService(object):
         return Response(
             GetOrderSchema().dumps(order).data,
             mimetype='application/json'
-        )
+        )        
 
     def _get_order(self, order_id):
-        # Retrieve order data from the orders service.
-        # Note - this may raise a remote exception that has been mapped to
-        # raise``OrderNotFound``
         order = self.orders_rpc.get_order(order_id)
-
-        # Retrieve all products from the products service
-        product_map = {prod['id']: prod for prod in self.products_rpc.list()}
-
-        # get the configured image root
+        product_ids = [item['product_id'] for item in order['order_details']]
+        products = self.products_rpc.get_products_by_ids(product_ids)
+        product_map = {prod['id']: prod for prod in products}
         image_root = config['PRODUCT_IMAGE_ROOT']
 
-        # Enhance order details with product and image details.
         for item in order['order_details']:
             product_id = item['product_id']
-
-            item['product'] = product_map[product_id]
-            # Construct an image url.
+            item['product'] = product_map.get(product_id, {})
             item['image'] = '{}/{}.jpg'.format(image_root, product_id)
 
         return order

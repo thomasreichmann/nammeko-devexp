@@ -1,6 +1,9 @@
 from nameko.events import EventDispatcher
 from nameko.rpc import rpc
 from nameko_sqlalchemy import DatabaseSession
+from sqlalchemy import func
+
+from nameko.events import event_handler
 
 from orders.exceptions import NotFound
 from orders.models import DeclarativeBase, Order, OrderDetail
@@ -12,6 +15,18 @@ class OrdersService:
 
     db = DatabaseSession(DeclarativeBase)
     event_dispatcher = EventDispatcher()
+    
+    @rpc
+    def list_orders(self, page=1, page_size=10):
+        total = self.db.query(func.count(Order.id)).scalar()
+        orders = self.db.query(Order).offset((page - 1) * page_size).limit(page_size).all()
+        return {
+            "total": total,
+            "pages": (total // page_size) + (1 if total % page_size > 0 else 0),
+            "current_page": page,
+            "page_size": page_size,
+            "orders": OrderSchema(many=True).dump(orders).data
+        }
 
     @rpc
     def get_order(self, order_id):
@@ -66,3 +81,12 @@ class OrdersService:
         order = self.db.query(Order).get(order_id)
         self.db.delete(order)
         self.db.commit()
+        
+    @event_handler("products", "product_deleted")
+    def handle_product_deleted(self, payload):
+        product_id = payload["product_id"]
+        
+        order_details_to_delete = self.db.query(OrderDetail).filter(OrderDetail.product_id == product_id)
+        order_details_to_delete.delete(synchronize_session=False)
+        self.db.commit()
+
